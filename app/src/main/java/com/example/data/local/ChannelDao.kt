@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.example.data.model.ChannelEntity
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,13 @@ interface ChannelDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChannels(channels: List<ChannelEntity>)
+
+    @Transaction
+    suspend fun insertChannelsChunked(channels: List<ChannelEntity>, chunkSize: Int = 250) {
+        channels.chunked(chunkSize).forEach { chunk ->
+            insertChannels(chunk)
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChannel(channel: ChannelEntity): Long

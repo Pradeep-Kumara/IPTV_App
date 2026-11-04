@@ -78,10 +78,21 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
     // Dynamic distinct categories extracted from currently selected playlist/all
     val categories: StateFlow<List<String>> = rawChannels.combine(_selectedPlaylistId) { channelsList, _ ->
         val groups = channelsList.map { it.groupTitle }
-            .filter { it.isNotBlank() }
+            .filter { it.isNotBlank() && !it.equals("General", ignoreCase = true) }
             .distinct()
-            .sorted()
-        listOf("All") + groups
+
+        val priorityCategories = listOf(
+            "News", "Sports", "Movies", "Music", "Entertainment",
+            "Animation", "Documentary", "Kids", "Series", "Science & Tech", "Classic"
+        )
+        val orderedPriority = priorityCategories.filter { cat ->
+            groups.any { it.equals(cat, ignoreCase = true) }
+        }
+        val rest = groups.filterNot { g ->
+            priorityCategories.any { it.equals(g, ignoreCase = true) }
+        }.sorted()
+
+        listOf("All") + orderedPriority + rest
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), listOf("All"))
 
     // Filtered channels combining search query and category
@@ -254,6 +265,13 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleMute() = playerManager.toggleMute()
     fun setVolume(volume: Float) = playerManager.setVolume(volume)
     fun closePlayer() = playerManager.closePlayer()
+
+    fun importIptvOrgGlobal() {
+        addPlaylistFromUrl(
+            name = "IPTV-org Global (11,000+ Channels)",
+            url = "https://iptv-org.github.io/iptv/index.m3u"
+        )
+    }
 
     override fun onCleared() {
         super.onCleared()

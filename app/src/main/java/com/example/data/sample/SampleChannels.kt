@@ -146,6 +146,11 @@ object SampleChannels {
 
     val POPULAR_PLAYLIST_PRESETS = listOf(
         PlaylistPreset(
+            name = "IPTV-org Global (11,000+ Channels)",
+            url = "https://iptv-org.github.io/iptv/index.m3u",
+            description = "All 11,000+ free public channels from the iptv-org repository"
+        ),
+        PlaylistPreset(
             name = "Free World News & Info",
             url = "https://iptv-org.github.io/iptv/categories/news.m3u",
             description = "24/7 Global news channels in multiple languages (Free public streams)"

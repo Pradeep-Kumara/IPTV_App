@@ -34,33 +34,26 @@ class IptvRepository(
     suspend fun initializeDefaultPlaylistIfEmpty() = withContext(Dispatchers.IO) {
         val count = playlistDao.getPlaylistCount()
         if (count == 0) {
-            val playlist = PlaylistEntity(
+            val starterPlaylist = PlaylistEntity(
                 name = SampleChannels.DEFAULT_PLAYLIST_NAME,
-                url = SampleChannels.DEFAULT_PLAYLIST_URL,
+                url = null,
                 channelCount = 0,
                 isDefault = true
             )
-            val playlistId = playlistDao.insertPlaylist(playlist)
-            val initialChannels = SampleChannels.getInitialChannels(playlistId)
-            channelDao.insertChannels(initialChannels)
-            playlistDao.updatePlaylist(playlist.copy(id = playlistId, channelCount = initialChannels.size))
-        } else {
-            val allPlaylists = playlistDao.getAllPlaylists().firstOrNull() ?: emptyList()
-            val defaultPlaylist = allPlaylists.firstOrNull { it.isDefault }
-            if (defaultPlaylist != null) {
-                val currentChannels = channelDao.getChannelsByPlaylist(defaultPlaylist.id).firstOrNull() ?: emptyList()
-                val hasStaleStreams = currentChannels.any {
-                    it.streamUrl.contains("ntv2.akamaized.net") ||
-                    it.streamUrl.contains("F24_EN_LO_HLS") ||
-                    it.streamUrl.contains("live-hls-web-aje.getaj.net")
-                }
-                if (hasStaleStreams) {
-                    channelDao.deleteChannelsByPlaylist(defaultPlaylist.id)
-                    val updatedChannels = SampleChannels.getInitialChannels(defaultPlaylist.id)
-                    channelDao.insertChannels(updatedChannels)
-                    playlistDao.updatePlaylist(defaultPlaylist.copy(channelCount = updatedChannels.size))
-                }
-            }
+            val starterId = playlistDao.insertPlaylist(starterPlaylist)
+            val initialChannels = SampleChannels.getInitialChannels(starterId)
+            channelDao.insertChannelsChunked(initialChannels)
+            playlistDao.updatePlaylist(starterPlaylist.copy(id = starterId, channelCount = initialChannels.size))
+        }
+
+        // Ensure iptv-org index playlist is imported
+        val allPlaylists = playlistDao.getAllPlaylists().firstOrNull() ?: emptyList()
+        val hasIptvOrg = allPlaylists.any { it.url == "https://iptv-org.github.io/iptv/index.m3u" }
+        if (!hasIptvOrg) {
+            addPlaylistFromUrl(
+                name = "IPTV-org Global (11,000+ Channels)",
+                url = "https://iptv-org.github.io/iptv/index.m3u"
+            )
         }
     }
 
@@ -84,7 +77,7 @@ class IptvRepository(
             return@withContext Result.failure(Exception("No valid stream channels found in this playlist"))
         }
 
-        channelDao.insertChannels(parsedChannels)
+        channelDao.insertChannelsChunked(parsedChannels)
         val updatedPlaylist = playlist.copy(id = playlistId, channelCount = parsedChannels.size)
         playlistDao.updatePlaylist(updatedPlaylist)
         Result.success(updatedPlaylist)
@@ -108,7 +101,7 @@ class IptvRepository(
             return@withContext Result.failure(Exception("No valid stream channels parsed from content"))
         }
 
-        channelDao.insertChannels(parsedChannels)
+        channelDao.insertChannelsChunked(parsedChannels)
         val updatedPlaylist = playlist.copy(id = playlistId, channelCount = parsedChannels.size)
         playlistDao.updatePlaylist(updatedPlaylist)
         Result.success(updatedPlaylist)
@@ -132,7 +125,7 @@ class IptvRepository(
         val parsedChannels = M3uParser.parse(content, playlistId)
         if (parsedChannels.isNotEmpty()) {
             channelDao.deleteChannelsByPlaylist(playlistId)
-            channelDao.insertChannels(parsedChannels)
+            channelDao.insertChannelsChunked(parsedChannels)
             playlistDao.updatePlaylist(playlist.copy(channelCount = parsedChannels.size))
             Result.success(parsedChannels.size)
         } else {

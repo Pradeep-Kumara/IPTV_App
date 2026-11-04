@@ -34,7 +34,8 @@ object M3uParser {
                 // Extract group-title
                 val groupMatcher = GROUP_TITLE_PATTERN.matcher(infContent)
                 currentGroup = if (groupMatcher.find()) {
-                    (groupMatcher.group(1) ?: groupMatcher.group(2) ?: "General").trim().ifEmpty { "General" }
+                    val rawG = (groupMatcher.group(1) ?: groupMatcher.group(2) ?: "General").trim()
+                    rawG.split(';').firstOrNull()?.trim()?.ifEmpty { "General" } ?: "General"
                 } else {
                     "General"
                 }

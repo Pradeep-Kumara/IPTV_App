@@ -1,0 +1,6 @@
+{
+  "name": "StreamPulse IPTV",
+  "description": "Watch live IPTV channels and streams with playlist management, favorites, categories, and high-performance playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
